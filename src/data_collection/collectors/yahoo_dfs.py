@@ -13,6 +13,7 @@ import json
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 from dataclasses import dataclass
+import re
 
 from ..base import (
     BaseAPICollector,
@@ -289,19 +290,93 @@ class YahooDFSCollector(BaseAPICollector):
             endpoint = f"export/contestPlayers?contestId={contest_id}"
             self.logger.info(f"Fetching players for contest {contest_id}")
             
-            response = await self._make_request(endpoint)
-            if not response:
-                return []
+            # This endpoint returns CSV, so we need to make a direct request
+            url = f"https://dfyql-ro.sports.yahoo.com/v2/{endpoint}"
+            
+            if not self.session:
+                import aiohttp
+                self.session = aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.config.timeout),
+                    headers=self.config.headers or {},
+                )
+            
+            async with self.session.get(url) as response:
+                if response.status == 200:
+                    csv_content = await response.text()
+                    players = self._parse_csv_players(csv_content)
+                    self.logger.info(f"Found {len(players)} players for contest {contest_id}")
+                    return players
+                else:
+                    self.logger.error(f"Failed to fetch players: {response.status}")
+                    return []
+                    
+        except Exception as e:
+            self.logger.error(f"Failed to fetch players for contest {contest_id}: {e}")
+            return []
+
+    def _parse_csv_players(self, csv_content: str) -> List[Dict[str, Any]]:
+        """Parse CSV content from the contest players endpoint."""
+        try:
+            import csv
+            from io import StringIO
+            
+            players = []
+            csv_file = StringIO(csv_content)
+            csv_reader = csv.DictReader(csv_file)
+            
+            for row in csv_reader:
+                # Convert row to dict and clean up values
+                player = {}
+                for key, value in row.items():
+                    if value and value.strip():
+                        # Try to convert numeric values
+                        try:
+                            if '.' in value:
+                                player[key] = float(value)
+                            else:
+                                player[key] = int(value)
+                        except ValueError:
+                            player[key] = value.strip()
+                    else:
+                        player[key] = None
                 
-            # Extract players from response
-            players = response.get("players", {}).get("result", [])
-            self.logger.info(f"Found {len(players)} players for contest {contest_id}")
+                # Construct full name from First Name and Last Name
+                first_name = player.get('First Name', '')
+                last_name = player.get('Last Name', '')
+                if first_name and last_name:
+                    player['name'] = f"{first_name} {last_name}"
+                
+                players.append(player)
             
             return players
             
         except Exception as e:
-            self.logger.error(f"Failed to fetch players for contest {contest_id}: {e}")
+            self.logger.error(f"Failed to parse CSV players: {e}")
             return []
+
+    async def get_standardized_players(self, contest_id: str) -> Dict[str, Dict[str, Any]]:
+        """
+        Get players with standardized names for cross-source matching.
+        
+        Returns:
+            Dict mapping standardized names to player data
+        """
+        players = await self.get_contest_players(contest_id)
+        
+        standardized = {}
+        for player in players:
+            name = player.get("name", "")
+            if name:
+                std_name = self._standardize_name(name)
+                standardized[std_name] = player
+        
+        return standardized
+
+    def _standardize_name(self, name: str) -> str:
+        """Standardize player name to Yahoo format."""
+        if not name:
+            return ""
+        return re.sub(r'\s+', ' ', name.strip()).lower()
 
     def get_available_sports(self) -> List[SportType]:
         """Get list of available sports."""
