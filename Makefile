@@ -52,6 +52,9 @@ run-yahoo-example: ## Run the Yahoo DFS contest scraping example script
 run-player-matching: ## Run player matching example
 	uv run python examples/player_matching_example.py
 
+run-lineup-optimizer: ## Run Yahoo DFS lineup optimizer
+	uv run python examples/run_lineup_optimizer.py
+
 dev-setup: ## Set up development environment
 	./scripts/dev-setup.sh
 
@@ -67,3 +70,6 @@ venv: ## Activate virtual environment
 	@echo ""
 	@echo "Or use uv run to run commands in the virtual environment:"
 	@echo "uv run python script.py" 
+
+create-dummy-projections: ## Create dummy projections CSV file
+	uv run python examples/create_dummy_projections.py 

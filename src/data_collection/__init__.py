@@ -31,11 +31,12 @@ from .projection_consensus import (
     ProjectionSource,
     PlayerProjection as ConsensusPlayerProjection,
 )
+from .lineup_optimizer import main as run_lineup_optimizer
 
 __all__ = [
     # Base classes
     "BaseDataCollector",
-    "BaseAPICollector", 
+    "BaseAPICollector",
     "BaseWebScrapingCollector",
     "DataCollectionManager",
     "PlayerProjection",
@@ -43,16 +44,19 @@ __all__ = [
     "DataSourceType",
     "DataCollectionConfig",
     "DataCollectionError",
-    
+
     # Collectors
     "BasketballReferenceCollector",
     "DailyFantasyFuelCollector",
     "YahooDFSCollector",
-    
+
     # Player matching and consensus
     "PlayerNameMatcher",
     "ProjectionConsensus",
-    "ProjectionAggregator", 
+    "ProjectionAggregator",
     "ProjectionSource",
     "ConsensusPlayerProjection",
+
+    # Lineup optimization
+    "run_lineup_optimizer",
 ]
