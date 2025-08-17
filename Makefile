@@ -43,6 +43,9 @@ clean: ## Clean up generated files
 run-example: ## Run the example data collection script
 	uv run python examples/collect_data.py
 
+run-dff-example: ## Run the Daily Fantasy Fuel example script
+	uv run python examples/process_dff_csv.py
+
 dev-setup: ## Set up development environment
 	./scripts/dev-setup.sh
 

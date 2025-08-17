@@ -68,15 +68,18 @@ projections = await manager.collect_from_all_sources(SportType.NBA)
 consensus = await manager.get_consensus_projections(SportType.NBA, min_sources=2)
 ```
 
-### Running the Example
+### Running the Examples
 
 ```bash
-# Using uv (recommended)
+# Basic data collection example
 uv run python examples/collect_data.py
 
-# Or activate virtual environment first
-source .venv/bin/activate
-python examples/collect_data.py
+# Daily Fantasy Fuel CSV processing example
+uv run python examples/process_dff_csv.py
+
+# Or use the Makefile
+make run-example
+make run-dff-example
 ```
 
 ### Adding New Data Sources
@@ -85,6 +88,52 @@ python examples/collect_data.py
 2. Implement the required abstract methods
 3. Add configuration to `config/data_sources.yaml`
 4. Register with the `DataCollectionManager`
+
+### Daily Fantasy Fuel Integration
+
+The project now includes a dedicated collector for [Daily Fantasy Fuel](https://www.dailyfantasyfuel.com/), a premium DFS projections service that covers:
+
+- **Sports**: NFL, NBA, MLB, NHL, WNBA
+- **Platforms**: DraftKings, FanDuel
+- **Data Format**: Automatic CSV downloads via web scraping
+- **Features**: Player projections, salaries, injury status, starting lineups
+
+#### Usage:
+
+```python
+from data_collection.collectors import DailyFantasyFuelCollector
+from data_collection.base import SportType
+
+# Create collector
+dff_collector = DailyFantasyFuelCollector()
+
+# Automatically scrape and download projections
+projections = await dff_collector.collect_projections(SportType.NBA)
+
+# Check if authentication is required
+if await dff_collector.login_if_required(username, password):
+    projections = await dff_collector.collect_projections(SportType.NFL)
+```
+
+#### How It Works:
+
+1. **Automatic Navigation**: The collector navigates to sport-specific pages on Daily Fantasy Fuel
+2. **CSV Link Detection**: Searches for CSV download links using multiple methods
+3. **Automatic Download**: Downloads CSV files directly from the website
+4. **Data Parsing**: Converts CSV data to our standardized `PlayerProjection` format
+5. **Authentication Support**: Handles login requirements for premium content
+
+#### CSV Format Requirements:
+
+The collector automatically handles CSV files with these columns:
+- `Player`: Player name
+- `Team`: Player's team
+- `Opponent`: Opposing team
+- `Position`: Player position
+- `Salary`: Player salary
+- `Projected_Points`: Expected fantasy points
+- `Game_Date`: Game date
+- `Injury_Status`: Injury information (optional)
 
 ## Project Structure
 
@@ -96,11 +145,13 @@ fantasy/
 │       ├── base.py              # Abstract base classes
 │       └── collectors/          # Concrete implementations
 │           ├── __init__.py
-│           └── basketball_reference.py
+│           ├── basketball_reference.py
+│           └── daily_fantasy_fuel.py
 ├── config/
 │   └── data_sources.yaml       # Data source configuration
 ├── examples/
-│   └── collect_data.py         # Example usage script
+│   ├── collect_data.py         # Basic data collection example
+│   └── process_dff_csv.py      # Daily Fantasy Fuel CSV processing
 ├── scripts/
 │   └── dev-setup.sh            # Development setup script
 ├── pyproject.toml              # Project configuration and dependencies
