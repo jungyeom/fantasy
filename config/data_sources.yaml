@@ -2,13 +2,27 @@
 # This file defines the available data sources for DFS projections
 
 data_sources:
+  yahoo_dfs:
+    name: "Yahoo DFS"
+    type: "web_scraping"
+    base_url: "https://sports.yahoo.com/dailyfantasy"
+    rate_limit_delay: 2.0
+    max_retries: 3
+    timeout: 30
+    user_agent: "Mozilla/5.0 (compatible; DFSBot/1.0)"
+    sports: ["nfl", "nba", "mlb", "nhl"]
+    description: "Yahoo DFS contest information and structure"
+    data_type: "contest_info"
+    requires_auth: false
+    
   daily_fantasy_fuel:
     name: "Daily Fantasy Fuel"
-    type: "file"
+    type: "web_scraping"
     base_url: "https://www.dailyfantasyfuel.com"
-    rate_limit_delay: 0.0
-    max_retries: 1
+    rate_limit_delay: 3.0
+    max_retries: 3
     timeout: 30
+    user_agent: "Mozilla/5.0 (compatible; DFSBot/1.0)"
     sports: ["nfl", "nba", "mlb", "nhl", "wnba"]
     description: "Premium DFS projections for all major sports (requires CSV export)"
     platforms: ["DraftKings", "FanDuel"]

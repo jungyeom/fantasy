@@ -46,6 +46,9 @@ run-example: ## Run the example data collection script
 run-dff-example: ## Run the Daily Fantasy Fuel example script
 	uv run python examples/process_dff_csv.py
 
+run-yahoo-example: ## Run the Yahoo DFS contest scraping example script
+	uv run python examples/scrape_yahoo_contests.py
+
 dev-setup: ## Set up development environment
 	./scripts/dev-setup.sh
 

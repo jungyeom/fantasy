@@ -77,9 +77,13 @@ uv run python examples/collect_data.py
 # Daily Fantasy Fuel CSV processing example
 uv run python examples/process_dff_csv.py
 
+# Yahoo DFS contest scraping example
+uv run python examples/scrape_yahoo_contests.py
+
 # Or use the Makefile
 make run-example
 make run-dff-example
+make run-yahoo-example
 ```
 
 ### Adding New Data Sources
@@ -88,6 +92,53 @@ make run-dff-example
 2. Implement the required abstract methods
 3. Add configuration to `config/data_sources.yaml`
 4. Register with the `DataCollectionManager`
+
+### Yahoo DFS Contest Information
+
+The project now includes a dedicated collector for [Yahoo DFS](https://sports.yahoo.com/dailyfantasy) contest information that covers:
+
+- **Sports**: NFL, NBA, MLB, NHL
+- **Data Type**: Contest information and structure
+- **Features**: Entry fees, prize pools, entry limits, contest types
+- **Focus**: Multi-entry contests only
+
+#### Usage:
+
+```python
+from data_collection.collectors import YahooDFSCollector
+from data_collection.base import SportType
+
+# Create collector
+yahoo_collector = YahooDFSCollector()
+
+# Collect multi-entry contests for NFL
+contests = await yahoo_collector.collect_contests(SportType.NFL)
+
+# Filter by contest types
+guaranteed_contests = await yahoo_collector.collect_contests(
+    SportType.NBA,
+    contest_types=["Guaranteed", "Multi Entry"]
+)
+
+# Get contest statistics
+stats = yahoo_collector.get_contest_statistics(contests)
+```
+
+#### Contest Information Collected:
+
+- **Entry Fee**: Cost to enter each contest
+- **Prize Pool**: Total prize money available
+- **Entry Limits**: Maximum entries per user and total contest entries
+- **Contest Types**: Guaranteed, Qualifier, Satellite, etc.
+- **Entry Limit Types**: Single Entry, Multi Entry, Max Entries
+
+#### How It Works:
+
+1. **Automatic Navigation**: Navigates to sport-specific DFS pages
+2. **Contest Detection**: Finds contest containers using multiple methods
+3. **Data Extraction**: Parses contest details from HTML content
+4. **Multi-Entry Filtering**: Automatically filters for contests allowing multiple entries
+5. **Statistical Analysis**: Provides contest statistics and analysis tools
 
 ### Daily Fantasy Fuel Integration
 
@@ -146,12 +197,14 @@ fantasy/
 │       └── collectors/          # Concrete implementations
 │           ├── __init__.py
 │           ├── basketball_reference.py
-│           └── daily_fantasy_fuel.py
+│           ├── daily_fantasy_fuel.py
+│           └── yahoo_dfs.py
 ├── config/
 │   └── data_sources.yaml       # Data source configuration
 ├── examples/
 │   ├── collect_data.py         # Basic data collection example
-│   └── process_dff_csv.py      # Daily Fantasy Fuel CSV processing
+│   ├── process_dff_csv.py      # Daily Fantasy Fuel CSV processing
+│   └── scrape_yahoo_contests.py # Yahoo DFS contest scraping
 ├── scripts/
 │   └── dev-setup.sh            # Development setup script
 ├── pyproject.toml              # Project configuration and dependencies
