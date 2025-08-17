@@ -22,6 +22,13 @@ This project is designed to help DFS players optimize their lineups by collectin
 
 2. Install dependencies:
    ```bash
+   # Using uv (recommended)
+   uv sync
+   
+   # Or install development dependencies
+   uv sync --extra dev
+   
+   # Alternative: using pip
    pip install -r requirements.txt
    ```
 
@@ -64,6 +71,11 @@ consensus = await manager.get_consensus_projections(SportType.NBA, min_sources=2
 ### Running the Example
 
 ```bash
+# Using uv (recommended)
+uv run python examples/collect_data.py
+
+# Or activate virtual environment first
+source .venv/bin/activate
 python examples/collect_data.py
 ```
 
@@ -89,7 +101,10 @@ fantasy/
 │   └── data_sources.yaml       # Data source configuration
 ├── examples/
 │   └── collect_data.py         # Example usage script
-├── requirements.txt             # Python dependencies
+├── scripts/
+│   └── dev-setup.sh            # Development setup script
+├── pyproject.toml              # Project configuration and dependencies
+├── Makefile                    # Common development tasks
 └── README.md
 ```
 

@@ -2,4 +2,4 @@
 
 from .basketball_reference import BasketballReferenceCollector
 
-__all__ = ['BasketballReferenceCollector'] 
+__all__ = ["BasketballReferenceCollector"]
