@@ -50,12 +50,12 @@ async def main():
 
         # Example 2: Get available sports and dates
         logger.info("\nExample 2: Available sports and dates")
-        sports = await yahoo_collector.get_available_sports()
+        sports = yahoo_collector.get_available_sports()
         logger.info(f"Yahoo DFS supports: {[s.value for s in sports]}")
 
         # Get available dates for NFL
         try:
-            dates = await yahoo_collector.get_available_dates(SportType.NFL)
+            dates = yahoo_collector.get_available_dates(SportType.NFL)
             logger.info(f"Available dates for NFL: {dates}")
         except Exception as e:
             logger.warning(f"Could not get available dates: {e}")
@@ -106,20 +106,17 @@ async def main():
 
             logger.info("Contest Statistics:")
             logger.info(f"  Total contests: {stats['total_contests']}")
-            logger.info(f"  Total prize pool: ${stats['total_prize_pool']:,.2f}")
+            logger.info(f"  Total prize pools: ${stats['total_prize_pools']:,.2f}")
             logger.info(f"  Average entry fee: ${stats['average_entry_fee']:.2f}")
 
             logger.info("  Contest types:")
-            for contest_type, count in stats["contest_types"].items():
+            for contest_type, count in stats["contest_type_distribution"].items():
                 logger.info(f"    {contest_type}: {count}")
 
-            logger.info("  Entry limit types:")
-            for entry_type, count in stats["entry_limit_types"].items():
-                logger.info(f"    {entry_type}: {count}")
-
-            logger.info("  Sports:")
-            for sport, count in stats["sports"].items():
-                logger.info(f"    {sport}: {count}")
+            logger.info("  Multi-entry vs Single-entry:")
+            logger.info(f"    Multi-entry: {stats['multi_entry_count']}")
+            logger.info(f"    Single-entry: {stats['single_entry_count']}")
+            logger.info(f"    Multi-entry percentage: {stats['multi_entry_percentage']:.1f}%")
 
         # Example 6: Filter contests by specific criteria
         logger.info("\nExample 6: Filtering contests by criteria")

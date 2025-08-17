@@ -1,7 +1,7 @@
 """
 Yahoo DFS contest information collector.
 
-This collector scrapes Yahoo DFS to extract contest details including:
+This collector uses the Yahoo DFS API to extract contest details including:
 - Contest fees
 - Prize structures and payout percentages
 - Entry limits for multi-entry contests
@@ -9,13 +9,13 @@ This collector scrapes Yahoo DFS to extract contest details including:
 """
 
 import asyncio
-import re
+import json
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 from dataclasses import dataclass
 
 from ..base import (
-    BaseWebScrapingCollector,
+    BaseAPICollector,
     DataCollectionConfig,
     DataSourceType,
     SportType,
@@ -56,15 +56,15 @@ class YahooContest:
             raise ValueError("Max entries per user must be positive")
 
 
-class YahooDFSCollector(BaseWebScrapingCollector):
-    """Collects contest information from Yahoo DFS."""
+class YahooDFSCollector(BaseAPICollector):
+    """Collects contest information from Yahoo DFS using their API."""
 
     def __init__(self) -> None:
         config = DataCollectionConfig(
             source_name="Yahoo DFS",
-            source_type=DataSourceType.WEB_SCRAPING,
-            base_url="https://sports.yahoo.com/dailyfantasy",
-            rate_limit_delay=2.0,  # Be respectful to Yahoo's servers
+            source_type=DataSourceType.API,
+            base_url="https://dfyql-ro.sports.yahoo.com/v2",
+            rate_limit_delay=1.0,  # Be respectful to Yahoo's API
             user_agent=(
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -73,71 +73,54 @@ class YahooDFSCollector(BaseWebScrapingCollector):
         )
         super().__init__(config)
 
-        # Yahoo DFS sport URLs
-        self.sport_urls = {
-            SportType.NFL: "/nfl",
-            SportType.NBA: "/nba",
-            SportType.MLB: "/mlb",
-            SportType.NHL: "/nhl",
+        # Yahoo DFS sport codes
+        self.sport_codes = {
+            SportType.NFL: "nfl",
+            SportType.NBA: "nba", 
+            SportType.MLB: "mlb",
+            SportType.NHL: "nhl",
         }
-
-        # Contest type patterns
-        self.contest_patterns = {
-            "guaranteed": r"guaranteed|gtd|gpp",
-            "qualifier": r"qualifier|qual|satellite",
-            "satellite": r"satellite|sat",
-            "multi_entry": r"multi.?entry|max.?entries|multiple",
-            "single_entry": r"single.?entry|one.?entry",
-        }
-
-    async def collect_projections(
-        self, sport: SportType, game_date: Optional[date] = None
-    ) -> List[Any]:
-        """
-        This collector doesn't collect player projections.
-        Use collect_contests() instead.
-        """
-        raise DataCollectionError(
-            "Yahoo DFS collector is for contest information only. "
-            "Use collect_contests() method."
-        )
 
     async def collect_contests(
-        self,
-        sport: SportType,
+        self, 
+        sport: SportType, 
         game_date: Optional[date] = None,
         contest_types: Optional[List[str]] = None,
+        multi_entry_only: bool = True,
     ) -> List[YahooContest]:
         """
-        Collect contest information from Yahoo DFS.
-
+        Collect contest information from Yahoo DFS API.
+        
         Args:
             sport: The sport to collect contests for
-            game_date: The date to collect contests for (defaults to today)
+            game_date: The date to collect contests for (not used in current API)
             contest_types: Filter by contest types (e.g., ["Guaranteed", "Multi Entry"])
-
+            multi_entry_only: Whether to only return multi-entry contests
+            
         Returns:
             List of YahooContest objects
         """
         try:
             self.logger.info(
-                f"Starting contest collection from Yahoo DFS for {sport.value}"
+                f"Starting contest collection from Yahoo DFS API for {sport.value}"
             )
 
-            # Get the sport-specific URL
-            sport_url = self.sport_urls.get(sport)
-            if not sport_url:
+            # Get the sport code
+            sport_code = self.sport_codes.get(sport)
+            if not sport_code:
                 raise DataCollectionError(f"Unsupported sport: {sport.value}")
 
-            # Navigate to the sport page
-            full_url = f"{self.config.base_url}{sport_url}"
-            self.logger.info(f"Navigating to: {full_url}")
+            # Make API request
+            endpoint = f"contestsFilteredWeb?sport={sport_code}"
+            self.logger.info(f"Requesting endpoint: {endpoint}")
+            
+            response = await self._make_request(endpoint)
+            if not response:
+                raise DataCollectionError("No response from Yahoo DFS API")
 
-            html_content = await self._get_page_content(full_url)
-            soup = await self._parse_html(html_content)
-
-            # Look for contest information
-            contests = self._extract_contests_from_page(soup, sport, game_date)
+            # Parse the response
+            contests = self._parse_api_response(response, sport)
+            self.logger.info(f"Found {len(contests)} total contests")
 
             # Filter by contest types if specified
             if contest_types:
@@ -150,121 +133,90 @@ class YahooDFSCollector(BaseWebScrapingCollector):
                     )
                 ]
 
-            # Filter for multi-entry contests only
-            multi_entry_contests = [
-                contest for contest in contests if contest.max_entries_per_user > 1
-            ]
+            # Filter for multi-entry contests only if requested
+            if multi_entry_only:
+                contests = [
+                    contest for contest in contests 
+                    if contest.max_entries_per_user > 1
+                ]
 
             self.logger.info(
-                f"Found {len(multi_entry_contests)} multi-entry contests "
-                f"out of {len(contests)} total contests"
+                f"Returning {len(contests)} contests "
+                f"({'multi-entry only' if multi_entry_only else 'all types'})"
             )
 
-            return multi_entry_contests
+            return contests
 
         except Exception as e:
             raise DataCollectionError(f"Failed to collect contests from Yahoo DFS: {e}")
 
-    def _extract_contests_from_page(
-        self, soup: Any, sport: SportType, game_date: Optional[date]
-    ) -> List[YahooContest]:
-        """Extract contest information from the page HTML."""
-        contests = []
-
+    def _parse_api_response(self, response: Dict[str, Any], sport: SportType) -> List[YahooContest]:
+        """Parse the API response and extract contest information."""
         try:
-            # Look for contest containers
-            # Yahoo DFS typically uses specific CSS classes or data attributes
-            contest_containers = self._find_contest_containers(soup)
-
-            for container in contest_containers:
+            if "contests" not in response or "result" not in response["contests"]:
+                self.logger.warning("No contests data in API response")
+                return []
+            
+            contests = []
+            for contest_data in response["contests"]["result"]:
                 try:
-                    contest = self._parse_contest_container(container, sport, game_date)
+                    contest = self._parse_contest_data(contest_data, sport)
                     if contest:
                         contests.append(contest)
                 except Exception as e:
-                    self.logger.warning(f"Failed to parse contest container: {e}")
+                    self.logger.warning(f"Failed to parse contest: {e}")
                     continue
-
+            
+            return contests
+            
         except Exception as e:
-            self.logger.error(f"Failed to extract contests: {e}")
+            self.logger.error(f"Failed to parse API response: {e}")
+            return []
 
-        return contests
-
-    def _find_contest_containers(self, soup: Any) -> List[Any]:
-        """Find contest containers in the HTML."""
-        containers = []
-
-        # Method 1: Look for common contest container patterns
-        selectors = [
-            '[class*="contest"]',
-            '[class*="tournament"]',
-            '[class*="game"]',
-            '[data-testid*="contest"]',
-            '[data-testid*="tournament"]',
-        ]
-
-        for selector in selectors:
-            containers.extend(soup.select(selector))
-
-        # Method 2: Look for elements with contest-related text
-        for element in soup.find_all(text=re.compile(r"contest|tournament|game", re.I)):
-            if element.parent:
-                containers.append(element.parent)
-
-        # Method 3: Look for table rows or list items containing contest info
-        for element in soup.find_all(["tr", "li", "div"]):
-            text = element.get_text().lower()
-            if any(word in text for word in ["entry fee", "prize pool", "max entries"]):
-                containers.append(element)
-
-        return containers
-
-    def _parse_contest_container(
-        self, container: Any, sport: SportType, game_date: Optional[date]
-    ) -> Optional[YahooContest]:
-        """Parse a single contest container into a YahooContest object."""
+    def _parse_contest_data(self, contest_data: Dict[str, Any], sport: SportType) -> Optional[YahooContest]:
+        """Parse individual contest data from the API response."""
         try:
-            text = container.get_text()
-
-            # Extract contest ID
-            contest_id = self._extract_contest_id(container)
-
-            # Extract contest name
-            contest_name = self._extract_contest_name(container)
-
-            # Extract entry fee
-            entry_fee = self._extract_entry_fee(text)
-
-            # Extract prize pool
-            prize_pool = self._extract_prize_pool(text)
-
+            # Extract basic contest information
+            contest_id = str(contest_data.get("id", ""))
+            contest_name = contest_data.get("title", "")
+            
+            if not contest_id or not contest_name:
+                return None
+            
+            # Extract entry fee and prize pool
+            entry_fee = contest_data.get("paidEntryFee", {}).get("value", 0.0)
+            total_prize_pool = contest_data.get("paidTotalPrize", {}).get("value", 0.0)
+            
             # Extract entry limits
-            max_entries, max_entries_per_user = self._extract_entry_limits(text)
-
+            max_entries = contest_data.get("entryLimit", 0)
+            max_entries_per_user = contest_data.get("multipleEntryLimit", 1)
+            
             # Determine contest type
-            contest_type = self._determine_contest_type(text)
-
-            # Determine entry limit type
-            entry_limit_type = self._determine_entry_limit_type(max_entries_per_user)
-
-            # Determine contest characteristics
-            guaranteed = bool(
-                re.search(self.contest_patterns["guaranteed"], text, re.I)
-            )
-            qualifier = bool(re.search(self.contest_patterns["qualifier"], text, re.I))
-            satellite = bool(re.search(self.contest_patterns["satellite"], text, re.I))
+            contest_type = self._determine_contest_type(contest_data)
+            entry_limit_type = self._determine_entry_limit_type(contest_data)
+            
+            # Extract boolean flags
+            guaranteed = contest_data.get("guaranteed", False)
+            qualifier = "qualifier" in contest_name.lower()
+            satellite = "satellite" in contest_name.lower()
             gpp = guaranteed  # Guaranteed Prize Pool
-
-            # Create contest object
-            contest = YahooContest(
+            
+            # Extract start time and convert to date
+            start_time_ms = contest_data.get("startTime", 0)
+            if start_time_ms:
+                contest_date = datetime.fromtimestamp(start_time_ms / 1000).date()
+            else:
+                contest_date = date.today()
+            
+            return YahooContest(
                 contest_id=contest_id,
                 contest_name=contest_name,
                 sport=sport,
-                contest_date=game_date or date.today(),
-                entry_fee=entry_fee,
-                total_prize_pool=prize_pool,
-                max_entries=max_entries,
-                max_entries_per_user=max_entries_per_user,
+                contest_date=contest_date,
+                entry_fee=float(entry_fee),
+                total_prize_pool=float(total_prize_pool),
+                max_entries=int(max_entries),
+                max_entries_per_user=int(max_entries_per_user),
                 contest_type=contest_type,
                 entry_limit_type=entry_limit_type,
                 guaranteed=guaranteed,
@@ -273,224 +225,128 @@ class YahooDFSCollector(BaseWebScrapingCollector):
                 gpp=gpp,
                 last_updated=datetime.now(),
             )
-
-            return contest
-
+            
         except Exception as e:
-            self.logger.warning(f"Failed to parse contest: {e}")
+            self.logger.warning(f"Failed to parse contest data: {e}")
             return None
 
-    def _extract_contest_id(self, container: Any) -> str:
-        """Extract contest ID from container."""
-        # Look for various ID patterns
-        id_patterns = [
-            r"contest[_-]?(\d+)",
-            r"tournament[_-]?(\d+)",
-            r"game[_-]?(\d+)",
-            r"id[_-]?(\d+)",
-        ]
-
-        text = container.get_text()
-        for pattern in id_patterns:
-            match = re.search(pattern, text, re.I)
-            if match:
-                return f"yahoo_{match.group(1)}"
-
-        # Fallback: generate ID from text hash
-        import hashlib
-
-        text_hash = hashlib.md5(text.encode()).hexdigest()[:8]
-        return f"yahoo_{text_hash}"
-
-    def _extract_contest_name(self, container: Any) -> str:
-        """Extract contest name from container."""
-        # Look for heading elements
-        for heading in container.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
-            name = heading.get_text().strip()
-            if isinstance(name, str) and name and len(name) > 3:
-                return name
-
-        # Look for elements with contest-related classes
-        for element in container.find_all(class_=re.compile(r"name|title|contest")):
-            name = element.get_text().strip()
-            if isinstance(name, str) and name and len(name) > 3:
-                return name
-
-        # Fallback: use first meaningful text
-        text = container.get_text().strip()
-        if isinstance(text, str):
-            lines = [line.strip() for line in text.split("\n") if line.strip()]
-            for line in lines:
-                if len(line) > 3 and not re.match(r"^\d+$", line):
-                    return line
-
-        return "Unknown Contest"
-
-    def _extract_entry_fee(self, text: str) -> float:
-        """Extract entry fee from text."""
-        # Look for dollar amounts
-        fee_patterns = [
-            r"\$(\d+(?:\.\d{2})?)",
-            r"entry[:\s]+(\d+(?:\.\d{2})?)",
-            r"fee[:\s]+(\d+(?:\.\d{2})?)",
-        ]
-
-        for pattern in fee_patterns:
-            match = re.search(pattern, text, re.I)
-            if match:
-                try:
-                    return float(match.group(1))
-                except ValueError:
-                    continue
-
-        return 0.0
-
-    def _extract_prize_pool(self, text: str) -> float:
-        """Extract total prize pool from text."""
-        # Look for dollar amounts that could be prize pools
-        pool_patterns = [
-            r"prize[:\s]+\$?(\d+(?:,\d{3})*(?:\.\d{2})?)",
-            r"pool[:\s]+\$?(\d+(?:,\d{3})*(?:\.\d{2})?)",
-            r"guaranteed[:\s]+\$?(\d+(?:,\d{3})*(?:\.\d{2})?)",
-            r"\$(\d+(?:,\d{3})*(?:\.\d{2})?)\s*(?:prize|pool)",
-        ]
-
-        for pattern in pool_patterns:
-            match = re.search(pattern, text, re.I)
-            if match:
-                try:
-                    # Remove commas and convert to float
-                    amount_str = match.group(1).replace(",", "")
-                    return float(amount_str)
-                except ValueError:
-                    continue
-
-        return 0.0
-
-    def _extract_entry_limits(self, text: str) -> tuple[int, int]:
-        """Extract entry limits from text."""
-        # Look for entry limit patterns
-        limit_patterns = [
-            r"max[:\s]+(\d+)\s*entries?",
-            r"limit[:\s]+(\d+)\s*entries?",
-            r"entries?[:\s]+(\d+)",
-            r"(\d+)\s*entries?",
-        ]
-
-        max_entries = 1000  # Default
-        max_entries_per_user = 1  # Default
-
-        for pattern in limit_patterns:
-            match = re.search(pattern, text, re.I)
-            if match:
-                try:
-                    limit = int(match.group(1))
-                    if limit > 0:
-                        max_entries = limit
-                        max_entries_per_user = limit
-                        break
-                except ValueError:
-                    continue
-
-        return max_entries, max_entries_per_user
-
-    def _determine_contest_type(self, text: str) -> str:
-        """Determine the type of contest."""
-        text_lower = text.lower()
-
-        if re.search(self.contest_patterns["guaranteed"], text_lower):
+    def _determine_contest_type(self, contest_data: Dict[str, Any]) -> str:
+        """Determine the contest type from the data."""
+        contest_name = contest_data.get("title", "").lower()
+        contest_type = contest_data.get("type", "")
+        
+        if "guaranteed" in contest_name:
             return "Guaranteed"
-        elif re.search(self.contest_patterns["qualifier"], text_lower):
+        elif "qualifier" in contest_name:
             return "Qualifier"
-        elif re.search(self.contest_patterns["satellite"], text_lower):
+        elif "satellite" in contest_name:
             return "Satellite"
+        elif contest_type == "50-50":
+            return "50/50"
+        elif contest_type == "head2head":
+            return "Head-to-Head"
+        elif contest_type == "league":
+            return "League"
         else:
-            return "Standard"
+            return contest_type.title() if contest_type else "Standard"
 
-    def _determine_entry_limit_type(self, max_entries_per_user: int) -> str:
-        """Determine the entry limit type."""
-        if max_entries_per_user == 1:
+    def _determine_entry_limit_type(self, contest_data: Dict[str, Any]) -> str:
+        """Determine the entry limit type from the data."""
+        multiple_entry = contest_data.get("multipleEntry", False)
+        multiple_entry_limit = contest_data.get("multipleEntryLimit", 1)
+        
+        if multiple_entry_limit == 1:
             return "Single Entry"
-        elif max_entries_per_user > 1:
-            return "Multi Entry"
+        elif multiple_entry_limit > 1:
+            return f"Multi Entry (Max {multiple_entry_limit})"
+        elif multiple_entry:
+            return "Multiple Entry"
         else:
-            return "Unknown"
+            return "Single Entry"
 
-    async def get_available_sports(self) -> List[SportType]:
-        """Yahoo DFS supports all major sports."""
-        return list(self.sport_urls.keys())
+    async def collect_projections(
+        self, sport: SportType, game_date: Optional[date] = None
+    ) -> List[Any]:
+        """
+        This collector doesn't collect player projections.
+        Use collect_contests() instead.
+        """
+        raise DataCollectionError(
+            "Yahoo DFS collector only collects contest information, not player projections"
+        )
 
-    async def get_available_dates(self, sport: SportType) -> List[date]:
-        """Get available contest dates from the website."""
+    async def get_contest_players(self, contest_id: str) -> List[Dict[str, Any]]:
+        """
+        Fetch player information for a specific contest.
+        
+        Args:
+            contest_id: The Yahoo contest ID
+            
+        Returns:
+            List of player dictionaries with ID, name, team, position, salary, etc.
+        """
         try:
-            # Navigate to the sport page to see available dates
-            sport_url = self.sport_urls.get(sport)
-            if not sport_url:
+            endpoint = f"export/contestPlayers?contestId={contest_id}"
+            self.logger.info(f"Fetching players for contest {contest_id}")
+            
+            response = await self._make_request(endpoint)
+            if not response:
                 return []
-
-            full_url = f"{self.config.base_url}{sport_url}"
-            html_content = await self._get_page_content(full_url)
-            soup = await self._parse_html(html_content)
-
-            # Look for date information on the page
-            dates = []
-
-            # Look for date elements
-            for date_elem in soup.find_all(text=re.compile(r"\d{1,2}/\d{1,2}/\d{2,4}")):
-                try:
-                    # Extract date from text
-                    date_match = re.search(r"(\d{1,2}/\d{1,2}/\d{2,4})", date_elem)
-                    if date_match:
-                        date_str = date_match.group(1)
-                        parsed_date = datetime.strptime(date_str, "%m/%d/%Y").date()
-                        dates.append(parsed_date)
-                except Exception:
-                    continue
-
-            # If no dates found, return today
-            if not dates:
-                dates = [date.today()]
-
-            return dates
-
+                
+            # Extract players from response
+            players = response.get("players", {}).get("result", [])
+            self.logger.info(f"Found {len(players)} players for contest {contest_id}")
+            
+            return players
+            
         except Exception as e:
-            self.logger.error(f"Failed to get available dates: {e}")
-            return [date.today()]
+            self.logger.error(f"Failed to fetch players for contest {contest_id}: {e}")
+            return []
+
+    def get_available_sports(self) -> List[SportType]:
+        """Get list of available sports."""
+        return list(self.sport_codes.keys())
+
+    def get_available_dates(self, sport: SportType) -> List[date]:
+        """Get available dates for a sport (not applicable for current API)."""
+        return [date.today()]
 
     def get_contest_statistics(self, contests: List[YahooContest]) -> Dict[str, Any]:
         """Get statistics about the collected contests."""
         if not contests:
             return {}
-
-        stats: Dict[str, Any] = {
-            "total_contests": len(contests),
-            "total_prize_pool": sum(c.total_prize_pool for c in contests),
-            "average_entry_fee": sum(c.entry_fee for c in contests) / len(contests),
-            "contest_types": {},
-            "entry_limit_types": {},
-            "sports": {},
+        
+        total_contests = len(contests)
+        total_prize_pools = sum(c.total_prize_pool for c in contests)
+        total_entry_fees = sum(c.entry_fee for c in contests)
+        
+        # Entry fee distribution
+        entry_fee_ranges = {
+            "$1-5": len([c for c in contests if 1 <= c.entry_fee <= 5]),
+            "$6-20": len([c for c in contests if 6 <= c.entry_fee <= 20]),
+            "$21-100": len([c for c in contests if 21 <= c.entry_fee <= 100]),
+            "$101+": len([c for c in contests if c.entry_fee > 100]),
         }
-
-        # Count contest types
+        
+        # Contest type distribution
+        contest_types = {}
         for contest in contests:
             contest_type = contest.contest_type
-            if isinstance(stats["contest_types"], dict):
-                stats["contest_types"][contest_type] = (
-                    stats["contest_types"].get(contest_type, 0) + 1
-                )
-
-        # Count entry limit types
-        for contest in contests:
-            entry_type = contest.entry_limit_type
-            if isinstance(stats["entry_limit_types"], dict):
-                stats["entry_limit_types"][entry_type] = (
-                    stats["entry_limit_types"].get(entry_type, 0) + 1
-                )
-
-        # Count sports
-        for contest in contests:
-            sport = contest.sport.value
-            if isinstance(stats["sports"], dict):
-                stats["sports"][sport] = stats["sports"].get(sport, 0) + 1
-
-        return stats
+            contest_types[contest_type] = contest_types.get(contest_type, 0) + 1
+        
+        # Multi-entry vs single-entry
+        multi_entry_count = len([c for c in contests if c.max_entries_per_user > 1])
+        single_entry_count = total_contests - multi_entry_count
+        
+        return {
+            "total_contests": total_contests,
+            "total_prize_pools": total_prize_pools,
+            "total_entry_fees": total_entry_fees,
+            "average_prize_pool": total_prize_pools / total_contests if total_contests > 0 else 0,
+            "average_entry_fee": total_entry_fees / total_contests if total_contests > 0 else 0,
+            "entry_fee_distribution": entry_fee_ranges,
+            "contest_type_distribution": contest_types,
+            "multi_entry_count": multi_entry_count,
+            "single_entry_count": single_entry_count,
+            "multi_entry_percentage": (multi_entry_count / total_contests * 100) if total_contests > 0 else 0,
+        }
