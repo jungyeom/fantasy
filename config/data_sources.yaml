@@ -1,0 +1,112 @@
+# Data Sources Configuration
+# This file defines the available data sources for DFS projections
+
+data_sources:
+  basketball_reference:
+    name: "Basketball Reference"
+    type: "web_scraping"
+    base_url: "https://www.basketball-reference.com"
+    rate_limit_delay: 2.0
+    max_retries: 3
+    timeout: 30
+    user_agent: "Mozilla/5.0 (compatible; DFSBot/1.0)"
+    sports: ["nba"]
+    description: "Free NBA stats and historical data"
+    
+  baseball_reference:
+    name: "Baseball Reference"
+    type: "web_scraping"
+    base_url: "https://www.baseball-reference.com"
+    rate_limit_delay: 2.0
+    max_retries: 3
+    timeout: 30
+    user_agent: "Mozilla/5.0 (compatible; DFSBot/1.0)"
+    sports: ["mlb"]
+    description: "Free MLB stats and historical data"
+    
+  pro_football_reference:
+    name: "Pro Football Reference"
+    type: "web_scraping"
+    base_url: "https://www.pro-football-reference.com"
+    rate_limit_delay: 2.0
+    max_retries: 3
+    timeout: 30
+    user_agent: "Mozilla/5.0 (compatible; DFSBot/1.0)"
+    sports: ["nfl"]
+    description: "Free NFL stats and historical data"
+    
+  espn_fantasy:
+    name: "ESPN Fantasy"
+    type: "api"
+    base_url: "https://fantasy.espn.com/apis/v3/games"
+    rate_limit_delay: 1.0
+    max_retries: 3
+    timeout: 30
+    sports: ["nfl", "nba", "mlb"]
+    description: "ESPN Fantasy API (limited free access)"
+    
+  yahoo_fantasy:
+    name: "Yahoo Fantasy"
+    type: "api"
+    base_url: "https://fantasysports.yahooapis.com/fantasy/v2"
+    rate_limit_delay: 1.0
+    max_retries: 3
+    timeout: 30
+    sports: ["nfl", "nba", "mlb", "nhl"]
+    description: "Yahoo Fantasy API (requires OAuth)"
+    requires_auth: true
+    
+  numberfire:
+    name: "NumberFire"
+    type: "web_scraping"
+    base_url: "https://www.numberfire.com"
+    rate_limit_delay: 3.0
+    max_retries: 3
+    timeout: 30
+    user_agent: "Mozilla/5.0 (compatible; DFSBot/1.0)"
+    sports: ["nfl", "nba", "mlb"]
+    description: "DFS projections and analysis (limited free access)"
+    
+  fantasypros:
+    name: "FantasyPros"
+    type: "web_scraping"
+    base_url: "https://www.fantasypros.com"
+    rate_limit_delay: 2.0
+    max_retries: 3
+    timeout: 30
+    user_agent: "Mozilla/5.0 (compatible; DFSBot/1.0)"
+    sports: ["nfl", "nba", "mlb"]
+    description: "Fantasy advice and projections (limited free access)"
+
+# Default settings for all sources
+defaults:
+  rate_limit_delay: 2.0
+  max_retries: 3
+  timeout: 30
+  user_agent: "Mozilla/5.0 (compatible; DFSBot/1.0)"
+
+# Rate limiting configuration
+rate_limiting:
+  global_delay: 1.0  # Minimum delay between any requests
+  max_concurrent_requests: 5
+  burst_limit: 10
+  burst_window: 60  # seconds
+
+# Data quality settings
+data_quality:
+  min_confidence: 0.5
+  min_sources_for_consensus: 2
+  max_age_hours: 24  # Maximum age of projections to consider valid
+  
+# Caching configuration
+caching:
+  enabled: true
+  cache_duration_hours: 6
+  cache_directory: "./cache"
+  
+# Logging configuration
+logging:
+  level: "INFO"
+  file: "./logs/data_collection.log"
+  max_file_size_mb: 10
+  backup_count: 5 
