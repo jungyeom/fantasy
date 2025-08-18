@@ -31,17 +31,13 @@ class YahooContest:
     contest_id: str
     contest_name: str
     sport: SportType
-    contest_date: date
+    contest_date: Optional[date]
     entry_fee: float
     total_prize_pool: float
     max_entries: int
     max_entries_per_user: int
-    contest_type: str  # e.g., "Guaranteed", "Qualifier", "Satellite"
-    entry_limit_type: str  # "Single Entry", "Multi Entry", "Max Entries"
-    guaranteed: bool
-    qualifier: bool
-    satellite: bool
-    gpp: bool  # Guaranteed Prize Pool
+    slate_type: str = "UNKNOWN"
+    salary_cap: int = 0
     source: str = "Yahoo DFS"
     last_updated: Optional[datetime] = None
 
@@ -111,8 +107,8 @@ class YahooDFSCollector(BaseAPICollector):
             if not sport_code:
                 raise DataCollectionError(f"Unsupported sport: {sport.value}")
 
-            # Make API request
-            endpoint = f"contestsFilteredWeb?sport={sport_code}"
+            # Add slateTypes parameter to get both single game and multi game contests
+            endpoint = f"contestsFilteredWeb?sport={sport_code}&slateTypes=SINGLE_GAME&slateTypes=MULTI_GAME"
             self.logger.info(f"Requesting endpoint: {endpoint}")
             
             response = await self._make_request(endpoint)
@@ -120,7 +116,7 @@ class YahooDFSCollector(BaseAPICollector):
                 raise DataCollectionError("No response from Yahoo DFS API")
 
             # Parse the response
-            contests = self._parse_api_response(response, sport)
+            contests = self._parse_api_response(response)
             self.logger.info(f"Found {len(contests)} total contests")
 
             # Filter by contest types if specified
@@ -151,17 +147,21 @@ class YahooDFSCollector(BaseAPICollector):
         except Exception as e:
             raise DataCollectionError(f"Failed to collect contests from Yahoo DFS: {e}")
 
-    def _parse_api_response(self, response: Dict[str, Any], sport: SportType) -> List[YahooContest]:
-        """Parse the API response and extract contest information."""
+    def _parse_api_response(self, response: Dict[str, Any]) -> List[YahooContest]:
+        """Parse the API response to extract contest information."""
         try:
-            if "contests" not in response or "result" not in response["contests"]:
-                self.logger.warning("No contests data in API response")
+            contests = []
+            
+            # Handle nested structure: response['contests']['result']
+            if 'contests' in response and 'result' in response['contests']:
+                contests_data = response['contests']['result']
+            else:
+                self.logger.warning("No contests found in API response")
                 return []
             
-            contests = []
-            for contest_data in response["contests"]["result"]:
+            for contest_data in contests_data:
                 try:
-                    contest = self._parse_contest_data(contest_data, sport)
+                    contest = self._parse_contest_data(contest_data)
                     if contest:
                         contests.append(contest)
                 except Exception as e:
@@ -174,42 +174,41 @@ class YahooDFSCollector(BaseAPICollector):
             self.logger.error(f"Failed to parse API response: {e}")
             return []
 
-    def _parse_contest_data(self, contest_data: Dict[str, Any], sport: SportType) -> Optional[YahooContest]:
+    def _parse_contest_data(self, contest_data: Dict[str, Any]) -> Optional[YahooContest]:
         """Parse individual contest data from the API response."""
         try:
             # Extract basic contest information
             contest_id = str(contest_data.get("id", ""))
             contest_name = contest_data.get("title", "")
             
-            if not contest_id or not contest_name:
-                return None
+            # Handle nested monetary values
+            entry_fee_data = contest_data.get("paidEntryFee", {})
+            if isinstance(entry_fee_data, dict):
+                entry_fee = entry_fee_data.get("value", 0)
+            else:
+                entry_fee = entry_fee_data
             
-            # Extract entry fee and prize pool
-            entry_fee = contest_data.get("paidEntryFee", {}).get("value", 0.0)
-            total_prize_pool = contest_data.get("paidTotalPrize", {}).get("value", 0.0)
+            total_prize_pool_data = contest_data.get("paidTotalPrize", {})
+            if isinstance(total_prize_pool_data, dict):
+                total_prize_pool = total_prize_pool_data.get("value", 0)
+            else:
+                total_prize_pool = total_prize_pool_data
             
-            # Extract entry limits
             max_entries = contest_data.get("entryLimit", 0)
             max_entries_per_user = contest_data.get("multipleEntryLimit", 1)
+            start_time = contest_data.get("startTime", "")
+            slate_type = contest_data.get("slateType", "UNKNOWN")
+            salary_cap = contest_data.get("salaryCap", 0)
             
-            # Determine contest type
-            contest_type = self._determine_contest_type(contest_data)
-            entry_limit_type = self._determine_entry_limit_type(contest_data)
+            # Extract sport from contest data
+            sport_code = contest_data.get("sportCode", "nfl")
+            sport = self._get_sport_type(sport_code)
             
-            # Extract boolean flags
-            guaranteed = contest_data.get("guaranteed", False)
-            qualifier = "qualifier" in contest_name.lower()
-            satellite = "satellite" in contest_name.lower()
-            gpp = guaranteed  # Guaranteed Prize Pool
+            # Parse start time to get contest date
+            contest_date = self._parse_start_time(start_time) if start_time else None
             
-            # Extract start time and convert to date
-            start_time_ms = contest_data.get("startTime", 0)
-            if start_time_ms:
-                contest_date = datetime.fromtimestamp(start_time_ms / 1000).date()
-            else:
-                contest_date = date.today()
-            
-            return YahooContest(
+            # Create YahooContest object
+            contest = YahooContest(
                 contest_id=contest_id,
                 contest_name=contest_name,
                 sport=sport,
@@ -218,18 +217,36 @@ class YahooDFSCollector(BaseAPICollector):
                 total_prize_pool=float(total_prize_pool),
                 max_entries=int(max_entries),
                 max_entries_per_user=int(max_entries_per_user),
-                contest_type=contest_type,
-                entry_limit_type=entry_limit_type,
-                guaranteed=guaranteed,
-                qualifier=qualifier,
-                satellite=satellite,
-                gpp=gpp,
-                last_updated=datetime.now(),
+                slate_type=slate_type,
+                salary_cap=int(salary_cap)
             )
+            
+            return contest
             
         except Exception as e:
             self.logger.warning(f"Failed to parse contest data: {e}")
             return None
+    
+    def _parse_start_time(self, start_time: str) -> Optional[date]:
+        """Parse start time string to date."""
+        try:
+            if start_time:
+                # Convert milliseconds timestamp to date
+                timestamp_ms = int(start_time)
+                return datetime.fromtimestamp(timestamp_ms / 1000).date()
+            return None
+        except (ValueError, TypeError):
+            return None
+    
+    def _get_sport_type(self, sport_code: str) -> SportType:
+        """Convert sport code to SportType enum."""
+        sport_mapping = {
+            'nfl': SportType.NFL,
+            'nba': SportType.NBA,
+            'mlb': SportType.MLB,
+            'nhl': SportType.NHL
+        }
+        return sport_mapping.get(sport_code.lower(), SportType.NFL)
 
     def _determine_contest_type(self, contest_data: Dict[str, Any]) -> str:
         """Determine the contest type from the data."""
@@ -279,27 +296,27 @@ class YahooDFSCollector(BaseAPICollector):
     async def get_contest_players(self, contest_id: str) -> List[Dict[str, Any]]:
         """
         Fetch player information for a specific contest.
-        
+
         Args:
             contest_id: The Yahoo contest ID
-            
+
         Returns:
             List of player dictionaries with ID, name, team, position, salary, etc.
         """
         try:
             endpoint = f"export/contestPlayers?contestId={contest_id}"
             self.logger.info(f"Fetching players for contest {contest_id}")
-            
+
             # This endpoint returns CSV, so we need to make a direct request
             url = f"https://dfyql-ro.sports.yahoo.com/v2/{endpoint}"
-            
+
             if not self.session:
                 import aiohttp
                 self.session = aiohttp.ClientSession(
                     timeout=aiohttp.ClientTimeout(total=self.config.timeout),
                     headers=self.config.headers or {},
                 )
-            
+
             async with self.session.get(url) as response:
                 if response.status == 200:
                     csv_content = await response.text()
@@ -309,7 +326,7 @@ class YahooDFSCollector(BaseAPICollector):
                 else:
                     self.logger.error(f"Failed to fetch players: {response.status}")
                     return []
-                    
+
         except Exception as e:
             self.logger.error(f"Failed to fetch players for contest {contest_id}: {e}")
             return []
@@ -349,26 +366,119 @@ class YahooDFSCollector(BaseAPICollector):
                 players.append(player)
             
             return players
-            
+
         except Exception as e:
             self.logger.error(f"Failed to parse CSV players: {e}")
             return []
 
+    async def get_contest_game_info(self, contest_id: str) -> Dict[str, Any]:
+        """
+        Fetch game information for a specific contest.
+
+        Args:
+            contest_id: The Yahoo contest ID
+
+        Returns:
+            Dictionary containing game information including game ID
+        """
+        try:
+            # First get the contest details to find the game
+            contests = await self.collect_contests(SportType.NFL, multi_entry_only=False)
+            contest = next((c for c in contests if c.contest_id == contest_id), None)
+            
+            if not contest:
+                self.logger.error(f"Contest {contest_id} not found")
+                return {}
+            
+            # Extract game information from contest data
+            # This is a placeholder - actual implementation depends on Yahoo's API structure
+            game_info = {
+                "contest_id": contest_id,
+                "game_id": f"nfl.g.{contest_id}",  # Placeholder format
+                "sport": "nfl",
+                "game_time": getattr(contest, 'start_time', None),
+                "teams": [],  # Will be populated from player data
+            }
+            
+            # Get players to extract team information
+            players = await self.get_contest_players(contest_id)
+            teams = set()
+            for player in players:
+                if player.get('team'):
+                    teams.add(player['team'])
+            
+            game_info['teams'] = list(teams)
+            
+            return game_info
+
+        except Exception as e:
+            self.logger.error(f"Failed to fetch game info for contest {contest_id}: {e}")
+            return {}
+
+    async def get_players_with_ids(self, contest_id: str) -> List[Dict[str, Any]]:
+        """
+        Fetch players with their Yahoo player IDs and game IDs.
+
+        Args:
+            contest_id: The Yahoo contest ID
+
+        Returns:
+            List of player dictionaries with Yahoo IDs and game information
+        """
+        try:
+            # Get basic player information
+            players = await self.get_contest_players(contest_id)
+            
+            # Get game information
+            game_info = await self.get_contest_game_info(contest_id)
+            
+            # Enhance player data with IDs
+            enhanced_players = []
+            for player in players:
+                # Use the actual Yahoo player ID from the CSV
+                yahoo_player_id = player.get('ID', '')
+                
+                # Extract game ID from the Game field (e.g., "DAL@PHI" -> generate game ID)
+                game_field = player.get('Game', '')
+                if game_field and '@' in game_field:
+                    # Generate a game ID based on the teams and contest
+                    game_id = f"nfl.g.{hash(game_field + contest_id) % 100000000}"
+                else:
+                    game_id = f"nfl.g.{contest_id}"
+                
+                enhanced_player = player.copy()
+                enhanced_player.update({
+                    'yahoo_player_id': yahoo_player_id,
+                    'game_id': game_id,
+                    'full_yahoo_id': f"{game_id}${yahoo_player_id}",
+                    'sport': 'nfl',
+                })
+                enhanced_players.append(enhanced_player)
+            
+            self.logger.info(f"Enhanced {len(enhanced_players)} players with Yahoo IDs")
+            return enhanced_players
+
+        except Exception as e:
+            self.logger.error(f"Failed to get players with IDs for contest {contest_id}: {e}")
+            return []
+
     async def get_standardized_players(self, contest_id: str) -> Dict[str, Dict[str, Any]]:
         """
-        Get players with standardized names for cross-source matching.
-        
+        Get players for a contest with standardized names and Yahoo IDs.
+
+        Args:
+            contest_id: The Yahoo contest ID
+
         Returns:
-            Dict mapping standardized names to player data
+            Dictionary mapping standardized player names to their data
         """
-        players = await self.get_contest_players(contest_id)
+        players = await self.get_players_with_ids(contest_id)
         
         standardized = {}
         for player in players:
-            name = player.get("name", "")
+            name = self._standardize_name(player.get("name", ""))
             if name:
-                std_name = self._standardize_name(name)
-                standardized[std_name] = player
+                standardized[name] = player
         
         return standardized
 

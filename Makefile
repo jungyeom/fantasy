@@ -73,3 +73,15 @@ venv: ## Activate virtual environment
 
 create-dummy-projections: ## Create dummy projections CSV file
 	uv run python examples/create_dummy_projections.py 
+
+run-pipeline: ## Run complete DFS pipeline (data collection + lineup optimization)
+	uv run python examples/run_pipeline.py
+
+run-pipeline-low-fee: ## Run DFS pipeline with entry fees ≤$0.5
+	uv run python -c "import asyncio, sys; sys.path.insert(0, 'src'); from data_collection import DFSPipeline, SportType; pipeline = DFSPipeline(); asyncio.run(pipeline.run_pipeline(SportType.NFL, max_entry_fee=0.5))"
+
+test-slate-types: ## Test slate types and budget handling for single vs multi game contests
+	uv run python -c "import asyncio, sys; sys.path.insert(0, 'src'); from data_collection import YahooDFSCollector, SportType; collector = YahooDFSCollector(); asyncio.run(collector.collect_contests(SportType.NFL, multi_entry_only=False))"
+
+test-single-vs-multi-optimizer: ## Test lineup optimizer with single game vs multi game contests
+	uv run python -c "import sys; sys.path.insert(0, 'src'); from data_collection.lineup_optimizer import optimize_lineups; from pathlib import Path; yahoo_csv = Path('examples/yahoo_players.csv'); multi_info = {'contest_id': 'test', 'contest_name': 'Multi Game', 'entry_fee': 1.0, 'slate_type': 'MULTI_GAME', 'salary_cap': 200}; single_info = {'contest_id': 'test', 'contest_name': 'Single Game', 'entry_fee': 0.25, 'slate_type': 'SINGLE_GAME', 'salary_cap': 135}; print('Testing Multi Game...'); multi = optimize_lineups(str(yahoo_csv), multi_info, 1); print('Testing Single Game...'); single = optimize_lineups(str(yahoo_csv), single_info, 1); print(f'Multi: ${multi[0][\"total_salary\"]:,}, Single: ${single[0][\"total_salary\"]:,}')" 

@@ -146,38 +146,103 @@ class ProjectionConsensus:
 
 class ProjectionAggregator:
     """Aggregates projections from multiple sources for multiple players."""
-    
+
     def __init__(self, consensus: ProjectionConsensus):
         """
         Initialize with a projection consensus engine.
-        
+
         Args:
             consensus: ProjectionConsensus instance
         """
         self.consensus = consensus
-    
-    def aggregate_player_projections(self, all_projections: Dict[str, Dict[str, float]]) -> Dict[str, Dict[str, Any]]:
+
+    def aggregate_player_projections(self, all_projections: Dict[str, Dict[str, float]], 
+                                   yahoo_players: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Dict[str, Any]]:
         """
         Aggregate projections for multiple players.
-        
+
         Args:
             all_projections: Dict mapping player names to their projections by source
-            
+            yahoo_players: Optional dict of Yahoo player data for ID formatting
+
         Returns:
             Dict mapping player names to aggregated projection data
         """
         aggregated = {}
-        
+
         for player_name, projections in all_projections.items():
             best_source, consensus_value = self.consensus.get_best_projection(projections)
             source_rankings = self.consensus.rank_sources_by_quality(projections)
-            
+
+            # Format player name with Yahoo ID if available
+            formatted_name = self._format_player_name_with_id(player_name, yahoo_players)
+
             aggregated[player_name] = {
+                "formatted_name": formatted_name,
                 "consensus_projection": consensus_value,
                 "best_source": best_source,
                 "source_rankings": source_rankings,
                 "all_projections": projections,
                 "projection_count": len([p for p in projections.values() if p is not None])
             }
+
+        return aggregated
+
+    def _format_player_name_with_id(self, player_name: str, 
+                                   yahoo_players: Optional[Dict[str, Dict[str, Any]]] = None) -> str:
+        """
+        Format player name with Yahoo ID in the required format.
         
-        return aggregated 
+        Format: "nfl.p.29369$nfl.g.13553316 - Dak Prescott"
+        
+        Args:
+            player_name: Player name to format
+            yahoo_players: Yahoo player data containing IDs
+            
+        Returns:
+            Formatted player name with Yahoo ID
+        """
+        if not yahoo_players:
+            return player_name
+        
+        # Try to find the player in Yahoo data
+        for yahoo_name, yahoo_data in yahoo_players.items():
+            # Use fuzzy matching to find the player
+            if self._names_match(player_name, yahoo_name):
+                full_yahoo_id = yahoo_data.get('full_yahoo_id')
+                if full_yahoo_id:
+                    return f"{full_yahoo_id} - {player_name.title()}"
+                else:
+                    # Fallback if no full ID
+                    player_id = yahoo_data.get('yahoo_player_id', 'unknown')
+                    game_id = yahoo_data.get('game_id', 'unknown')
+                    return f"{game_id}${player_id} - {player_name.title()}"
+        
+        # If no match found, return original name
+        return player_name
+
+    def _names_match(self, name1: str, name2: str, threshold: float = 0.8) -> bool:
+        """
+        Simple name matching using similarity threshold.
+        
+        Args:
+            name1: First name to compare
+            name2: Second name to compare
+            threshold: Similarity threshold (0.0 to 1.0)
+            
+        Returns:
+            True if names match above threshold
+        """
+        from difflib import SequenceMatcher
+        
+        # Normalize names for comparison
+        norm1 = name1.lower().strip()
+        norm2 = name2.lower().strip()
+        
+        # Exact match
+        if norm1 == norm2:
+            return True
+        
+        # Similarity match
+        similarity = SequenceMatcher(None, norm1, norm2).ratio()
+        return similarity >= threshold 

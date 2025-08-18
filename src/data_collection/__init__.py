@@ -32,6 +32,7 @@ from .projection_consensus import (
     PlayerProjection as ConsensusPlayerProjection,
 )
 from .lineup_optimizer import main as run_lineup_optimizer
+from .pipeline import DFSPipeline, main as run_pipeline
 
 __all__ = [
     # Base classes
@@ -59,4 +60,8 @@ __all__ = [
 
     # Lineup optimization
     "run_lineup_optimizer",
+    
+    # Pipeline
+    "DFSPipeline",
+    "run_pipeline",
 ]

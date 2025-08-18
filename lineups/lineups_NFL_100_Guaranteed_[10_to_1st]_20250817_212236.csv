@@ -1,0 +1,91 @@
+lineup_id,contest_id,contest_name,entry_fee,total_salary,projected_points,position,player_name,team,salary,projection
+14944419_1,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,QB,Patrick Mahomes,KC,35,24.7
+14944419_1,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Christian McCaffrey,SF,38,29.5
+14944419_1,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Saquon Barkley,PHI,37,26.4
+14944419_1,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Tyreek Hill,MIA,32,22.8
+14944419_1,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,CeeDee Lamb,DAL,31,22.9
+14944419_1,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Justin Jefferson,MIN,30,22.5
+14944419_1,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,TE,Travis Kelce,KC,28,23.3
+14944419_1,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,K,Justin Tucker,BAL,15,9.9
+14944419_1,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,DEF,San Francisco 49ers,SF,18,12.7
+14944419_2,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,QB,Patrick Mahomes,KC,35,24.7
+14944419_2,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Christian McCaffrey,SF,38,29.5
+14944419_2,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Saquon Barkley,PHI,37,26.4
+14944419_2,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Tyreek Hill,MIA,32,22.8
+14944419_2,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,CeeDee Lamb,DAL,31,22.9
+14944419_2,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Justin Jefferson,MIN,30,22.5
+14944419_2,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,TE,Travis Kelce,KC,28,23.3
+14944419_2,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,K,Justin Tucker,BAL,15,9.9
+14944419_2,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,DEF,San Francisco 49ers,SF,18,12.7
+14944419_3,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,QB,Patrick Mahomes,KC,35,24.7
+14944419_3,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Christian McCaffrey,SF,38,29.5
+14944419_3,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Saquon Barkley,PHI,37,26.4
+14944419_3,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Tyreek Hill,MIA,32,22.8
+14944419_3,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,CeeDee Lamb,DAL,31,22.9
+14944419_3,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Justin Jefferson,MIN,30,22.5
+14944419_3,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,TE,Travis Kelce,KC,28,23.3
+14944419_3,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,K,Justin Tucker,BAL,15,9.9
+14944419_3,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,DEF,San Francisco 49ers,SF,18,12.7
+14944419_4,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,QB,Patrick Mahomes,KC,35,24.7
+14944419_4,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Christian McCaffrey,SF,38,29.5
+14944419_4,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Saquon Barkley,PHI,37,26.4
+14944419_4,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Tyreek Hill,MIA,32,22.8
+14944419_4,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,CeeDee Lamb,DAL,31,22.9
+14944419_4,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Justin Jefferson,MIN,30,22.5
+14944419_4,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,TE,Travis Kelce,KC,28,23.3
+14944419_4,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,K,Justin Tucker,BAL,15,9.9
+14944419_4,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,DEF,San Francisco 49ers,SF,18,12.7
+14944419_5,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,QB,Patrick Mahomes,KC,35,24.7
+14944419_5,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Christian McCaffrey,SF,38,29.5
+14944419_5,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Saquon Barkley,PHI,37,26.4
+14944419_5,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Tyreek Hill,MIA,32,22.8
+14944419_5,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,CeeDee Lamb,DAL,31,22.9
+14944419_5,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Justin Jefferson,MIN,30,22.5
+14944419_5,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,TE,Travis Kelce,KC,28,23.3
+14944419_5,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,K,Justin Tucker,BAL,15,9.9
+14944419_5,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,DEF,San Francisco 49ers,SF,18,12.7
+14944419_6,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,QB,Patrick Mahomes,KC,35,24.7
+14944419_6,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Christian McCaffrey,SF,38,29.5
+14944419_6,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Saquon Barkley,PHI,37,26.4
+14944419_6,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Tyreek Hill,MIA,32,22.8
+14944419_6,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,CeeDee Lamb,DAL,31,22.9
+14944419_6,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Justin Jefferson,MIN,30,22.5
+14944419_6,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,TE,Travis Kelce,KC,28,23.3
+14944419_6,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,K,Justin Tucker,BAL,15,9.9
+14944419_6,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,DEF,San Francisco 49ers,SF,18,12.7
+14944419_7,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,QB,Patrick Mahomes,KC,35,24.7
+14944419_7,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Christian McCaffrey,SF,38,29.5
+14944419_7,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Saquon Barkley,PHI,37,26.4
+14944419_7,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Tyreek Hill,MIA,32,22.8
+14944419_7,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,CeeDee Lamb,DAL,31,22.9
+14944419_7,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Justin Jefferson,MIN,30,22.5
+14944419_7,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,TE,Travis Kelce,KC,28,23.3
+14944419_7,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,K,Justin Tucker,BAL,15,9.9
+14944419_7,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,DEF,San Francisco 49ers,SF,18,12.7
+14944419_8,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,QB,Patrick Mahomes,KC,35,24.7
+14944419_8,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Christian McCaffrey,SF,38,29.5
+14944419_8,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Saquon Barkley,PHI,37,26.4
+14944419_8,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Tyreek Hill,MIA,32,22.8
+14944419_8,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,CeeDee Lamb,DAL,31,22.9
+14944419_8,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Justin Jefferson,MIN,30,22.5
+14944419_8,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,TE,Travis Kelce,KC,28,23.3
+14944419_8,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,K,Justin Tucker,BAL,15,9.9
+14944419_8,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,DEF,San Francisco 49ers,SF,18,12.7
+14944419_9,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,QB,Patrick Mahomes,KC,35,24.7
+14944419_9,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Christian McCaffrey,SF,38,29.5
+14944419_9,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Saquon Barkley,PHI,37,26.4
+14944419_9,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Tyreek Hill,MIA,32,22.8
+14944419_9,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,CeeDee Lamb,DAL,31,22.9
+14944419_9,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Justin Jefferson,MIN,30,22.5
+14944419_9,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,TE,Travis Kelce,KC,28,23.3
+14944419_9,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,K,Justin Tucker,BAL,15,9.9
+14944419_9,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,DEF,San Francisco 49ers,SF,18,12.7
+14944419_10,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,QB,Patrick Mahomes,KC,35,24.7
+14944419_10,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Christian McCaffrey,SF,38,29.5
+14944419_10,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,RB,Saquon Barkley,PHI,37,26.4
+14944419_10,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Tyreek Hill,MIA,32,22.8
+14944419_10,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,CeeDee Lamb,DAL,31,22.9
+14944419_10,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,WR,Justin Jefferson,MIN,30,22.5
+14944419_10,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,TE,Travis Kelce,KC,28,23.3
+14944419_10,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,K,Justin Tucker,BAL,15,9.9
+14944419_10,14944419,NFL $100 Guaranteed [$10 to 1st],0.25,264,194.7,DEF,San Francisco 49ers,SF,18,12.7

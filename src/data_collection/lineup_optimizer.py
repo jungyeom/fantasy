@@ -152,156 +152,255 @@ async def get_contest_info() -> Dict[str, Any]:
     return contest_info
 
 
-def optimize_lineups(csv_file: str, num_lineups: int = 5) -> None:
+def optimize_lineups(projections_file: str, contest_info: Dict[str, Any], num_lineups: int = 1) -> List[Dict[str, Any]]:
     """
-    Optimize lineups using pydfs-lineup-optimizer library.
+    Optimize lineups using pydfs-lineup-optimizer.
     
     Args:
-        csv_file: Path to Yahoo-compatible CSV
-        num_lineups: Number of optimal lineups to generate
+        projections_file: Path to CSV file with player projections
+        contest_info: Contest information including slate_type and salary_cap
+        num_lineups: Number of lineups to generate
+        
+    Returns:
+        List of optimized lineups
     """
     try:
-        from pydfs_lineup_optimizer import Site, Sport, get_optimizer
+        from pydfs_lineup_optimizer import get_optimizer, Site, Sport
+        from pydfs_lineup_optimizer.sites.yahoo.settings import YahooFootballSettings
         
-        print(f"\n🚀 Optimizing {num_lineups} lineups using pydfs-lineup-optimizer...")
+        # Determine if this is a single game contest
+        is_single_game = contest_info.get('slate_type') == 'SINGLE_GAME'
+        salary_cap = contest_info.get('salary_cap', 200)
         
-        # Create optimizer for Yahoo NFL
-        optimizer = get_optimizer(Site.YAHOO, Sport.FOOTBALL)
+        print(f"🎯 Contest Type: {'Single Game' if is_single_game else 'Multi Game'}")
+        print(f"💰 Salary Cap: ${salary_cap:,}")
         
-        # Load players from CSV
-        optimizer.load_players_from_csv(csv_file)
+        # Create the appropriate optimizer based on contest type
+        if is_single_game:
+            print(f"🏈 Single Game Contest - Using 5-player structure (1 MVP + 4 UTIL)")
+            # Convert Yahoo CSV to FanDuel single game format
+            import tempfile
+            import os
+            
+            # Create temporary FanDuel CSV
+            temp_dir = tempfile.gettempdir()
+            fanduel_csv = os.path.join(temp_dir, f"fanduel_single_game_{os.getpid()}.csv")
+            
+            try:
+                convert_yahoo_to_fanduel_single_game_csv(projections_file, fanduel_csv)
+                optimizer = create_yahoo_single_game_optimizer(salary_cap)
+                optimizer.load_players_from_csv(fanduel_csv)
+            finally:
+                # Clean up temporary file
+                if os.path.exists(fanduel_csv):
+                    os.unlink(fanduel_csv)
+        else:
+            print(f"🏈 Multi Game Contest - Using standard 9-player structure")
+            optimizer = get_optimizer(Site.YAHOO, Sport.FOOTBALL)
+            optimizer.settings.budget = salary_cap
+            optimizer.load_players_from_csv(projections_file)
         
-        # Get available positions (Yahoo NFL uses standard positions)
-        yahoo_nfl_positions = ["QB", "RB", "WR", "TE", "K", "DEF"]
-        print(f"📋 Yahoo NFL positions: {yahoo_nfl_positions}")
+        print(f"📊 Loaded {len(optimizer.players)} players")
+        print(f"🎯 Available positions: {', '.join(sorted(optimizer.available_positions))}")
+        print(f"💰 Budget: ${optimizer.budget:,}")
         
-        # Generate optimal lineups
+        # Generate lineups
+        print(f"🚀 Generating {num_lineups} lineup(s)...")
         lineups = list(optimizer.optimize(num_lineups))
         
-        print(f"\n🏆 Generated {len(lineups)} optimal lineups:")
+        if not lineups:
+            print("❌ No valid lineups found!")
+            return []
         
-        for i, lineup in enumerate(lineups, 1):
-            print(f"\n📊 Lineup {i}:")
-            print(f"   Total Salary: ${lineup.salary_costs:,}")
-            
-            # Try different possible attribute names for fantasy points
-            fantasy_points = getattr(lineup, 'fantasy_points', None)
-            if fantasy_points is None:
-                fantasy_points = getattr(lineup, 'points', None)
-            if fantasy_points is None:
-                fantasy_points = getattr(lineup, 'projected_points', None)
-            if fantasy_points is None:
-                fantasy_points = 0.0  # Default if no points attribute found
-            
-            print(f"   Projected Points: {fantasy_points:.1f}")
-            print(f"   Players:")
-            
-            for player in lineup.lineup:
-                # Try different possible attribute names for player fantasy points
-                player_points = getattr(player, 'fantasy_points', None)
-                if player_points is None:
-                    player_points = getattr(player, 'points', None)
-                if player_points is None:
-                    player_points = getattr(player, 'projected_points', None)
-                if player_points is None:
-                    player_points = 0.0  # Default if no points attribute found
+        print(f"✅ Successfully generated {len(lineups)} lineup(s)")
+        
+        # Convert lineups to our format
+        formatted_lineups = []
+        for i, lineup in enumerate(lineups):
+            try:
+                # Get total fantasy points
+                fantasy_points = getattr(lineup, 'fantasy_points', 
+                                      getattr(lineup, 'points', 
+                                             getattr(lineup, 'projected_points', 0.0)))
                 
-                # Get position (it's 'positions' not 'position')
-                positions = getattr(player, 'positions', [])
-                position_str = '/'.join(positions) if positions else 'Unknown'
+                # Get total salary
+                total_salary = sum(player.salary for player in lineup.lineup)
                 
-                print(f"     {position_str}: {player.first_name} {player.last_name} "
-                      f"({player.team}) - ${player.salary:,} - {player_points:.1f} pts")
+                # Format players
+                players = []
+                for player in lineup.lineup:
+                    # Get player fantasy points
+                    player_points = getattr(player, 'fantasy_points', 
+                                          getattr(player, 'points', 
+                                                 getattr(player, 'projected_points', 0.0)))
+                    
+                    players.append({
+                        "player_name": player.first_name + " " + player.last_name,
+                        "position": '/'.join(player.positions),
+                        "team": player.team,
+                        "salary": player.salary,
+                        "projection": player_points,
+                        "fppg": player.fppg
+                    })
+                
+                formatted_lineup = {
+                    "lineup_id": f"{contest_info.get('contest_id', 'unknown')}_{i+1}",
+                    "contest_id": contest_info.get('contest_id', 'unknown'),
+                    "contest_name": contest_info.get('contest_name', 'Unknown Contest'),
+                    "entry_fee": contest_info.get('entry_fee', 0),
+                    "total_salary": total_salary,
+                    "projected_points": fantasy_points,
+                    "players": players
+                }
+                
+                formatted_lineups.append(formatted_lineup)
+                
+            except Exception as e:
+                print(f"⚠️ Error formatting lineup {i+1}: {e}")
+                continue
         
-        # Show lineup statistics
-        if lineups:
-            total_salaries = [lineup.salary_costs for lineup in lineups]
-            
-            # Get fantasy points for each lineup
-            total_points = []
-            for lineup in lineups:
-                fantasy_points = getattr(lineup, 'fantasy_points', None)
-                if fantasy_points is None:
-                    fantasy_points = getattr(lineup, 'points', None)
-                if fantasy_points is None:
-                    fantasy_points = getattr(lineup, 'projected_points', None)
-                if fantasy_points is None:
-                    fantasy_points = 0.0
-                total_points.append(fantasy_points)
-            
-            print(f"\n📈 Lineup Statistics:")
-            print(f"   Average Salary: ${sum(total_salaries) / len(total_salaries):,.0f}")
-            if any(total_points):
-                print(f"   Average Points: {sum(total_points) / len(total_points):.1f}")
-                print(f"   Best Lineup: {total_points.index(max(total_points)) + 1} "
-                      f"({max(total_points):.1f} pts)")
-            print(f"   Salary Range: ${min(total_salaries):,} - ${max(total_salaries):,}")
+        return formatted_lineups
         
-        # Note about FPPG usage
-        print(f"\n💡 Note: The optimizer uses the 'FPPG' column for projections.")
-        print(f"   Our consensus projections are in the 'Consensus Projection' column.")
-        print(f"   To use consensus projections, you can modify the CSV to copy")
-        print(f"   consensus values to the FPPG column before optimization.")
-        
-    except ImportError as e:
-        print(f"❌ Import error: {e}")
-        print("💡 Make sure pydfs-lineup-optimizer is installed:")
-        print("   uv add pydfs-lineup-optimizer")
+    except ImportError:
+        print("❌ pydfs-lineup-optimizer not installed!")
+        print("Install with: uv add pydfs-lineup-optimizer")
+        return []
     except Exception as e:
-        print(f"❌ Optimization failed: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ Error optimizing lineups: {e}")
+        return []
 
 
-async def main():
-    """Main function to run the lineup optimizer."""
+def convert_yahoo_to_fanduel_single_game_csv(yahoo_csv_path: str, fanduel_csv_path: str):
+    """
+    Convert Yahoo CSV format to FanDuel single game CSV format.
     
-    # File paths - now relative to examples folder
-    examples_dir = Path(__file__).parent.parent.parent / "examples"
-    dummy_csv = examples_dir / "dummy_projections.csv"
-    yahoo_csv = examples_dir / "yahoo_players.csv"
+    Args:
+        yahoo_csv_path: Path to Yahoo format CSV
+        fanduel_csv_path: Path to save FanDuel format CSV
+    """
+    import pandas as pd
+    import csv
     
-    print("🎯 Yahoo DFS Lineup Optimizer")
-    print("=" * 40)
+    # Read Yahoo CSV
+    df = pd.read_csv(yahoo_csv_path)
     
-    # Check if dummy projections exist
-    if not dummy_csv.exists():
-        print("❌ Dummy projections CSV not found!")
-        print("💡 Run: make create-dummy-projections")
+    # Create FanDuel single game CSV
+    with open(fanduel_csv_path, 'w', newline='', encoding='utf-8') as file:
+        fieldnames = ['Id', 'First Name', 'Last Name', 'Position', 'Team', 'Salary', 'FPPG', 'Game', 'Injury Indicator']
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        
+        for _, row in df.iterrows():
+            # Split name into first and last
+            full_name = row['First Name']
+            name_parts = full_name.split()
+            if len(name_parts) >= 2:
+                first_name = name_parts[0]
+                last_name = ' '.join(name_parts[1:])
+            else:
+                first_name = full_name
+                last_name = ''
+            
+            # Create game info (Team@Opponent format)
+            game = row['Game'] if pd.notna(row['Game']) else f"{row['Team']}@OPP"
+            
+            # Handle injury indicator
+            injury_indicator = row.get('Injury Status', '')
+            if pd.isna(injury_indicator):
+                injury_indicator = ''
+            
+            # Write row in FanDuel format
+            writer.writerow({
+                'Id': row['ID'],
+                'First Name': first_name,
+                'Last Name': last_name,
+                'Position': row['Position'],
+                'Team': row['Team'],
+                'Salary': row['Salary'],
+                'FPPG': row['FPPG'],
+                'Game': game,
+                'Injury Indicator': injury_indicator
+            })
+    
+    print(f"✅ Converted Yahoo CSV to FanDuel single game format: {fanduel_csv_path}")
+
+
+def create_yahoo_single_game_optimizer(salary_cap: int = 135):
+    """
+    Create a Yahoo single game optimizer using FanDuel single game structure.
+    
+    Args:
+        salary_cap: Salary cap for single game contests (default 135)
+        
+    Returns:
+        Single game optimizer with Yahoo budget
+    """
+    from pydfs_lineup_optimizer import get_optimizer, Site, Sport
+    
+    # Use FanDuel single game optimizer but with custom budget
+    optimizer = get_optimizer(Site.FANDUEL_SINGLE_GAME, Sport.FOOTBALL)
+    
+    # Override the budget to match Yahoo's single game budget
+    optimizer.settings.budget = salary_cap
+    
+    return optimizer
+
+
+def main():
+    """Main function to run lineup optimization."""
+    
+    # File paths
+    projections_file = Path("examples/dummy_projections.csv")
+    yahoo_csv = Path("examples/yahoo_players.csv")
+    
+    if not projections_file.exists():
+        print(f"❌ Projections file not found: {projections_file}")
         return
     
-    # Load projections
-    print("📊 Loading player projections...")
-    projections = load_projections_from_csv(str(dummy_csv))
+    print("🚀 Starting DFS Lineup Optimization")
+    print("=" * 50)
+    
+    # Load projections from CSV
+    print("📊 Loading projections from CSV...")
+    projections = load_projections_from_csv(str(projections_file))
     print(f"✅ Loaded {len(projections)} projections")
     
-    # Create Yahoo-compatible CSV
-    print("\n🔄 Converting to Yahoo format...")
-    create_yahoo_players_csv(projections, str(yahoo_csv), use_consensus=True)
+    # Create contest info (this would normally come from actual contest data)
+    contest_info = {
+        "contest_id": "test_contest_123",
+        "contest_name": "Test NFL Contest",
+        "entry_fee": 1.0,
+        "slate_type": "MULTI_GAME",  # Can be "SINGLE_GAME" or "MULTI_GAME"
+        "salary_cap": 200  # Will be 135 for single game, 200 for multi game
+    }
     
-    # Get contest info
-    print("\n🏈 Getting contest information...")
-    try:
-        contest_info = await get_contest_info()
-    except Exception as e:
-        print(f"⚠️  Could not get contest info: {e}")
-        print("   Using default settings...")
-        contest_info = {}
+    print(f"🏈 Contest: {contest_info['contest_name']}")
+    print(f"💰 Entry Fee: ${contest_info['entry_fee']}")
+    print(f"🎯 Slate Type: {contest_info['slate_type']}")
+    print(f"💰 Salary Cap: ${contest_info['salary_cap']:,}")
+    
+    # Create Yahoo-compatible CSV
+    print("\n📊 Creating Yahoo-compatible CSV...")
+    create_yahoo_players_csv(projections, yahoo_csv, use_consensus=True)
     
     # Optimize lineups
     print("\n🎯 Starting lineup optimization...")
-    optimize_lineups(str(yahoo_csv), num_lineups=5)
+    lineups = optimize_lineups(str(yahoo_csv), contest_info, num_lineups=5)
+    
+    if lineups:
+        print(f"\n🏆 Generated {len(lineups)} lineups:")
+        for i, lineup in enumerate(lineups, 1):
+            print(f"\n📊 Lineup {i}:")
+            print(f"   Contest: {lineup['contest_name']}")
+            print(f"   Total Salary: ${lineup['total_salary']:,}")
+            print(f"   Projected Points: {lineup['projected_points']:.1f}")
+            print(f"   Players:")
+            for player in lineup['players']:
+                print(f"     {player['position']}: {player['player_name']} "
+                      f"({player['team']}) - ${player['salary']:,} - {player['projection']:.1f} pts")
     
     print(f"\n✨ Lineup optimization complete!")
-    print(f"📁 Files created:")
-    print(f"   - {dummy_csv.name} (original projections)")
-    print(f"   - {yahoo_csv.name} (Yahoo format)")
-    
-    # Cleanup
-    if yahoo_csv.exists():
-        yahoo_csv.unlink()
-        print(f"🧹 Cleaned up temporary file: {yahoo_csv.name}")
 
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    main() 
